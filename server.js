@@ -28,10 +28,10 @@ io.on('connection', (socket) => {
     });
 
     socket.on('send-msg', ({ roomId, msg, type, sender }) => {
+        // التحقق من نوع المحادثة
         if (type === 'mafia') {
-            // إرسال لغرفة المافيا فقط - أمان كامل لمنع التجسس
             io.to(`${roomId}_mafia`).emit('receive-msg', { msg, sender, type });
-        } else {
+        } else if (type === 'global') {
             io.to(roomId).emit('receive-msg', { msg, sender, type });
         }
     });
