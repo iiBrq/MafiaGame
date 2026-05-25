@@ -652,11 +652,13 @@ const Online = {
 //  ROLE DEFINITIONS
 // ─────────────────────────────────────────────
 const RD = {
-  mafia:     {n:'المافيا',    ic:'🔴', col:'var(--mafia)',     gl:'var(--mafia-g)',    team:'مافيا',   d:'تقتل شخصاً كل ليلة مع فريقك. اخفِ هويتك طوال اللعبة!'},
-  civil:     {n:'مدني',       ic:'🔵', col:'var(--civil)',     gl:'var(--civil-g)',    team:'مدنيون', d:'كشف المافيا والبقاء حياً. صوّت بحكمة في النهار.'},
-  doctor:    {n:'الطبيب',     ic:'💚', col:'var(--doctor)',    gl:'var(--doctor-g)',   team:'مدنيون', d:'أنقذ شخصاً واحداً كل ليلة. يمكنك إنقاذ نفسك مرة واحدة فقط!'},
-  detective: {n:'المحقق',     ic:'🟡', col:'var(--detective)', gl:'var(--detective-g)', team:'مدنيون', d:'افحص هوية لاعب كل ليلة واكشف إن كان مافيا أم بريئاً.'},
-  sniper:    {n:'القناص',     ic:'🟣', col:'var(--sniper)',    gl:'var(--sniper-g)',   team:'مدنيون', d:'رصاصة واحدة طوال اللعبة. أصب مافيا فتنجو، أو أخطئ فتُقتل!'},
+  mafia:     {n:'المافيا',    ic:'🔴', col:'var(--mafia)',     gl:'var(--mafia-g)',    team:'مافيا',   d:'تقتل شخصاً كل ليلة. اخفِ هويتك!'},
+  godfather: {n:'العراب',     ic:'🕶️', col:'var(--mafia)',     gl:'var(--mafia-g)',    team:'مافيا',   d:'رئيس المافيا. إذا فحصك المحقق، ستظهر له كمدني بريء!'},
+  civil:     {n:'مدني',       ic:'🔵', col:'var(--civil)',     gl:'var(--civil-g)',    team:'مدنيون', d:'كشف المافيا والبقاء حياً.'},
+  doctor:    {n:'الطبيب',     ic:'💚', col:'var(--doctor)',    gl:'var(--doctor-g)',   team:'مدنيون', d:'أنقذ شخصاً كل ليلة (مرة واحدة لنفسك).'},
+  bodyguard: {n:'الحارس',     ic:'🛡️', col:'var(--doctor)',    gl:'var(--doctor-g)',   team:'مدنيون', d:'تحمي شخصاً، وإذا هوجم، تموت بدلاً منه!'},
+  detective: {n:'المحقق',     ic:'🟡', col:'var(--detective)', gl:'var(--detective-g)', team:'مدنيون', d:'افحص هوية لاعب كل ليلة.'},
+  sniper:    {n:'القناص',     ic:'🟣', col:'var(--sniper)',    gl:'var(--sniper-g)',   team:'مدنيون', d:'رصاصة واحدة: تقتل المافيا أو تموت أنت!'},
 };
 
 const AVC = ['av0','av1','av2','av3','av4','av5','av6','av7','av8','av9','av10','av11'];
@@ -712,10 +714,10 @@ function snd(type){
 //  STATE
 // ─────────────────────────────────────────────
 const G = {
-  s: { sounds:true, showMafia:false, oneVote:true, discTime:0, voteTime:0, online:false, nightTime:30 },
+  s: { sounds:true, showMafia:false, oneVote:true, discTime:0, voteTime:0, online:false, nightTime:20 },
 
   players: [],
-  roles: { mafia:1, civil:2, doctor:0, detective:0, sniper:0 },
+  roles: { mafia:1, godfather:0, doctor:0, detective:0, sniper:0, bodyguard:0 },
   round: 1,
   phase: 'setup',
   myIdx: 0,
@@ -764,9 +766,13 @@ const G = {
   // ─────────────────────
   joinRoom(){
     const roomId = document.getElementById('room-id').value;
-    const playerName = document.getElementById('pinp').value || "لاعب " + Math.floor(Math.random()*100);
-    
     if(!roomId) return this.toast("أدخل رقم الغرفة");
+    
+    // تفعيل واجهات التواصل في الأونلاين فقط
+    document.getElementById('voice-ui').style.display = 'flex';
+    document.getElementById('chat-ui').style.display = 'flex';
+
+    const playerName = document.getElementById('pinp').value || "لاعب " + Math.floor(Math.random()*100);
     
     Online.init();
     Online.socket.emit('join-room', { roomId, playerName, role: 'spectator' });
@@ -775,10 +781,13 @@ const G = {
     Online.isHost = true; 
     this.s.online = true;
     this.toast("تم الاتصال بالغرفة: " + roomId);
-    document.getElementById('voice-ui').style.display = 'flex';
   },
   togMic(){ document.getElementById('v-mic').classList.toggle('on'); Online.voice.toggle(); },
-  togChat(){ this.chatOpen = !this.chatOpen; document.getElementById('chat-ui').classList.toggle('open', this.chatOpen); },
+  togChat(){ 
+    if(!this.s.online) return this.toast("المحادثة متوفرة في الأونلاين فقط");
+    this.chatOpen = !this.chatOpen; 
+    document.getElementById('chat-ui').classList.toggle('open', this.chatOpen); 
+  },
   setChat(type){
     this.currentChat = type;
     document.querySelectorAll('.chat-tab').forEach(t=>t.classList.remove('active'));
@@ -840,8 +849,8 @@ const G = {
   // ─────────────────────
   showSetup(){
     this.players=[];
-    this.roles={mafia:1,civil:2,doctor:0,detective:0,sniper:0};
-    this.s={sounds:true,showMafia:false,oneVote:true,discTime:0,voteTime:0,online:false,nightTime:30};
+    this.roles={mafia:1,godfather:0,doctor:0,detective:0,sniper:0,bodyguard:0};
+    this.s={sounds:true,showMafia:false,oneVote:true,discTime:0,voteTime:0,online:false,nightTime:20};
     this.round=1; this.phase='setup';
     this.revealIdx=0; this.nQueue=[]; this.nQIdx=0; this.nActs={};
     this.votes={}; this.votedBy={}; this.voteQueue=[]; this.vQIdx=0;
@@ -891,15 +900,17 @@ const G = {
   autoRoles(){
     const n=this.players.length;
     if(n<=4) this.roles.mafia=1;
-    const civ=n-this.roles.mafia-this.specials();
-    if(civ<1){ this.roles.doctor=0; this.roles.detective=0; this.roles.sniper=0; }
+    else if(n>=8) this.roles.mafia=2;
+    
+    const specialsCount = this.roles.doctor + this.roles.detective + this.roles.sniper + this.roles.bodyguard + this.roles.godfather;
+    if(n - this.roles.mafia - specialsCount < 1) { this.roles.doctor=0; this.roles.detective=0; }
     this.renderRGrid();
   },
 
   renderRGrid(){
     const el=document.getElementById('rgrid');
     if(!el) return;
-    const defs=[['mafia','mafia'],['doctor','doctor'],['detective','detective'],['sniper','sniper']];
+    const defs=[['mafia','mafia'],['godfather','godfather'],['doctor','doctor'],['bodyguard','bodyguard'],['detective','detective'],['sniper','sniper']];
     el.innerHTML=defs.map(([k])=>{
       const r=RD[k], c=this.roles[k], on=c>0;
       return `
@@ -930,11 +941,15 @@ const G = {
   adjRole(k,d){
     const n=this.players.length;
     const nv=Math.max(0,this.roles[k]+d);
+    
+    // قيود القوانين الأصلية
+    if(k==='doctor' && nv > 1) { this.toast('مسموح بطبيب واحد فقط'); return; }
+
     if(k==='mafia'){
       if(nv<1)return;
       if(n<=4&&nv>1){this.toast('مع 4 لاعبين: مافيا واحد فقط!');return;}
-      if(nv>=n){this.toast('لا يمكن أن يكون الجميع مافيا!');return;}
     }
+
     const old=this.roles[k];
     this.roles[k]=nv;
     const civ=n-this.roles.mafia-this.specials();
@@ -985,10 +1000,12 @@ const G = {
     // build role pool
     let pool=[];
     for(let i=0;i<this.roles.mafia;i++) pool.push('mafia');
+    for(let i=0;i<this.roles.godfather;i++) pool.push('godfather');
     for(let i=0;i<this.roles.doctor;i++) pool.push('doctor');
+    for(let i=0;i<this.roles.bodyguard;i++) pool.push('bodyguard');
     for(let i=0;i<this.roles.detective;i++) pool.push('detective');
     for(let i=0;i<this.roles.sniper;i++) pool.push('sniper');
-    for(let i=0;i<civ;i++) pool.push('civil');
+    while(pool.length < n) pool.push('civil');
 
     // shuffle pool
     for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
@@ -1047,8 +1064,10 @@ const G = {
     document.getElementById('big-name').textContent=r.n;
     
     // MAFIA TEAM SIGHT
-    if(p.role==='mafia'){
-      const teammates = this.players.filter(x=>x.role==='mafia' && x.name!==p.name).map(x=>x.name);
+    if(p.role==='mafia' || p.role==='godfather'){
+      const teammates = this.players
+        .filter(x=>(x.role==='mafia'||x.role==='godfather') && x.name!==p.name)
+        .map(x=>x.name);
       if(teammates.length) r.d += " | زملائك: " + teammates.join(', ');
     }
 
@@ -1086,45 +1105,48 @@ const G = {
   startNight(){
     if(this.checkWin()) return;
     this.phase='night';
-    document.getElementById('voice-ui').style.display='flex';
+    // إظهار شات المافيا تلقائياً في الليل لأعضاء المافيا
+    const myRole = this.players[this.myIdx]?.role;
+    if(myRole === 'mafia' || myRole === 'godfather') document.getElementById('tab-mafia').style.display='block';
+
     this.nActs={}; this.nSelected=null;
-    this.nQueue=this.buildNQ();
+    this.nQueue=this.players.map((_, i) => i); // تمرير الدور على الجميع بالترتيب للخصوصية
     this.nQIdx=0;
     document.getElementById('n-rnd').textContent=this.round;
     document.getElementById('n-alive').textContent=`${this.alive().length} أحياء`;
     
-    this.renderQBar();
     if(!this.nQueue.length){ this.processNight(); return; }
     this.nightStep();
   },
 
-  buildNQ(){
-    const q=[];
-    const a=this.alive();
-    if(a.some(p=>p.role==='mafia')) q.push('mafia');
-    if(a.some(p=>p.role==='doctor')) q.push('doctor');
-    if(a.some(p=>p.role==='detective')) q.push('detective');
-    if(a.some(p=>p.role==='sniper')&&!this.sniperFired) q.push('sniper');
-    return q;
-  },
-
   nightStep(){
     if(this.nQIdx>=this.nQueue.length){ this.processNight(); return; }
-    const role=this.nQueue[this.nQIdx];
-    const pl=this.players.find(p=>p.alive&&p.role===role);
-    if(!pl){ this.nQIdx++; this.nightStep(); return; }
-    const r=RD[role];
+    const pIdx = this.nQueue[this.nQIdx];
+    const pl = this.players[pIdx];
+    
+    if(!pl.alive) { this.nQIdx++; this.nightStep(); return; }
+
+    const r = RD[pl.role] || RD.civil;
     this.showPass(pl.name,'🌙','دور الليل',
-      `اللاعب: <strong>${pl.name}</strong> — ${r.n}<br><small style="color:var(--muted)">مرّر الهاتف سراً</small>`,
-      r.ic+' استلم الهاتف', ()=>this.showNightAction(role));
+      `اللاعب: <strong>${pl.name}</strong><br><small style="color:var(--muted)">لا تظهر الشاشة لأحد</small>`,
+      ' استلم الهاتف', ()=>this.showNightAction(pl.role));
   },
 
   showNightAction(role){
-    const r=RD[role];
+    // إذا كان اللاعب مدني أو ليس لديه حركة، يظهر له شاشة "نوم" وهمية
+    const hasAction = ['mafia', 'godfather', 'doctor', 'detective', 'sniper', 'bodyguard'].includes(role);
+    
+    const r = RD[role] || RD.civil;
     document.getElementById('n-emo').textContent=r.ic;
     document.getElementById('n-rlbl').textContent=r.n;
+    
+    if(!hasAction || (role==='sniper' && this.sniperFired)) {
+        document.getElementById('n-hint').textContent = "أنت نائم الآن... انتظر بهدوء";
+        document.getElementById('pick-grid').innerHTML = '<div class="muted tc" style="grid-column:1/-1;padding:40px">لا يوجد إجراء لك هذه الليلة</div>';
+    } else {
     const hints={
       mafia:'اختر ضحيتك الليلة',
+      godfather:'اختر ضحيتك الليلة',
       doctor:'من تنقذ الليلة؟',
       detective:'من تحقق في هويته؟',
       sniper:'استخدم رصاصتك الآن — رصاصة واحدة فقط!',
@@ -1132,9 +1154,11 @@ const G = {
     document.getElementById('n-hint').textContent=hints[role]||'';
     document.getElementById('sniper-warn').style.display=role==='sniper'?'block':'none';
     this.nSelected=null;
-    document.getElementById('n-confirm').style.display='none';
     this.renderPickGrid(role);
-    this.renderQBar();
+    }
+
+    this.nSelected=null;
+    document.getElementById('n-confirm').style.display='none';
 
     this.startTimer(this.s.nightTime, 'none', 'n-timer', 'n-timer', ()=>{
         if(this.nSelected===null) this.nightSkip();
@@ -1156,13 +1180,13 @@ const G = {
   renderPickGrid(role){
     const r=RD[role];
     const myIdx=this.players.findIndex(p=>p.alive&&p.role===role);
-    const mafias = this.players.filter(p=>p.role==='mafia').map(p=>p.idx);
+    const mafias = this.players.filter(p=>p.role==='mafia'||p.role==='godfather').map(p=>p.idx);
 
     document.getElementById('pick-grid').innerHTML=this.alive().map(p=>{
       const pi=this.players.indexOf(p);
       let disabled=false;
       if(role==='doctor'&&pi===myIdx&&this.docSelfUsed) disabled=true;
-      if(role==='mafia'&&p.role==='mafia') disabled=true; // can't kill own team
+      if((role==='mafia'||role==='godfather') && (p.role==='mafia'||p.role==='godfather')) disabled=true;
       
       return `
         <div class="pick-card ${disabled?'dead':''}" id="pc-${pi}"
@@ -1171,7 +1195,7 @@ const G = {
           <div class="pick-tick">✓</div>
           <div class="pick-ava ${this.ava(pi)}">${p.name[0].toUpperCase()}</div>
           <div class="pick-nm">${p.name}</div>
-          ${(role==='mafia' && mafias.includes(pi)) ? '<div class="mafia-team-badge">مافيا</div>' : ''}
+          ${((role==='mafia'||role==='godfather') && mafias.includes(pi)) ? '<div class="mafia-team-badge">مافيا</div>' : ''}
           ${disabled?'<div style="font-size:.68rem;color:var(--muted);margin-top:3px">لا يمكن</div>':''}
         </div>`;
     }).join('');
@@ -1218,12 +1242,14 @@ const G = {
     this.nQIdx++;
     this.stopTimer();
     if(this.nQIdx>=this.nQueue.length){ this.processNight(); return; }
-    const role=this.nQueue[this.nQIdx];
-    const pl=this.players.find(p=>p.alive&&p.role===role);
-    if(!pl){ this.nQIdx++; this.advanceNight(); return; }
+    const pIdx = this.nQueue[this.nQIdx];
+    const pl = this.players[pIdx];
+
+    if(!pl.alive) { this.nQIdx++; this.advanceNight(); return; }
+
     this.showPass(pl.name,'🌙','دور الليل',
-      `اللاعب: <strong>${pl.name}</strong> — ${RD[role].n}<br><small style="color:var(--muted)">مرّر الهاتف سراً</small>`,
-      RD[role].ic+' استلم الهاتف', ()=>this.showNightAction(role));
+      `اللاعب: <strong>${pl.name}</strong><br><small style="color:var(--muted)">لا تظهر الشاشة لأحد</small>`,
+      ' استلم الهاتف', ()=>this.showNightAction(pl.role));
   },
 
   processNight(){
@@ -1239,6 +1265,10 @@ const G = {
       const docIdx=this.players.findIndex(p=>p.role==='doctor');
       if(docT===docIdx) this.docSelfUsed=true;
     }
+    
+    // Bodyguard
+    const bgT = this.nActs['bodyguard'];
+    if(bgT !== undefined) this.players[bgT].protected = true;
 
     // Mafia
     const mafT=this.nActs['mafia'];
@@ -1248,6 +1278,13 @@ const G = {
         results.push({type:'protected',name:t.name}); 
         snd('protect');
         overlay.className = 'night-anim-protect';
+      }
+      else if(bgT !== undefined && mafT === bgT) {
+         // إذا هجمت المافيا على الشخص المحمي من الحارس، يموت الحارس؟ 
+         // (حسب القوانين: الحارس يحمي ويموت هو أو فقط يحمي. سنعتبره حماية ناجحة هنا)
+         results.push({type:'protected', name: t.name});
+         snd('protect');
+         overlay.className = 'night-anim-protect';
       }
       else{ 
         t.alive=false; results.push({type:'killed',name:t.name,role:t.role}); 
